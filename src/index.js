@@ -6,16 +6,11 @@ import {
   createBrowserRouter,
   RouterProvider,
 } from "react-router-dom";
-import NextStep from './NextStep';
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
-  },
-  {
-    path:"/step-1",
-    element: <NextStep />
   }
 ]);
 
