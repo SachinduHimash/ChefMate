@@ -1,2 +1,3 @@
 # chefMate
-React + TensaflowJS project developed for Master's Programme
+An experimental project to how object detection,gesture recognition,voice recognition would combinely work in a multimodal interface.
+Technologies: React, TensaflowJS
