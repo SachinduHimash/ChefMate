@@ -1,5 +1,5 @@
 // Import dependencies
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import * as tf from "@tensorflow/tfjs";
 
 import * as cocossd from "@tensorflow-models/coco-ssd";
@@ -13,10 +13,12 @@ import * as fpg from "fingerpose-gestures";
 
 import { drawRect,drawHand } from "./utilities";
 import logo from "./assets/ChefMate.png"
-import { Button } from 'antd';
-import { AudioOutlined,AudioMutedOutlined } from '@ant-design/icons';
+import { Button,Card,Popconfirm } from 'antd';
+import { AudioOutlined,AudioMutedOutlined,PlusOutlined,BulbOutlined } from '@ant-design/icons';
 
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+
+import axios from 'axios';
 
 
 function App() {
@@ -26,13 +28,22 @@ function App() {
   const [item,setItem]= useState();
   const [draft,setDraft]=useState();
   const [ingredients,setIngredients]=useState([]);
+  const [rawingredients,setRawIngredients]=useState([]);
+  const [recipes,setReceipes]=useState([]);
   const {transcript,listening,resetTranscript} = useSpeechRecognition();
-  const [gesture,setGesture]=useState();
+  const [okgesture,setOkGesture]=useState();
+  const [removegesture,setRemoveGesture]=useState();
+  const [latestItem,setLatestItem]=useState("");
+  const { Meta } = Card;
+
 
   const Instructions=[
     {step:1,text:'Point the ingredients you have to the camera.'},
     {step:2,text:'When the ingredient is detected say the amount to add it to the draft .'},
-    {step:3,text:'Show 👌 to add into ingredients'}
+    {step:3,text:'Show 👌 to add into ingredients'},
+    {step:4,text:'Show ✋ to remove an ingredient'},
+    {step:5,text:'Select from Suggested Recipes'}
+
   ]
 
   // Main function
@@ -93,6 +104,21 @@ function App() {
     }
   };
 
+  const fetchData = useCallback(()=>{
+      axios.get('https://api.spoonacular.com/recipes/findByIngredients?ingredients=apples,+banana,+sugar&number=4',{ headers: { 'x-api-key': 'f0a27ba528854325870889a12fa44014'}})
+    .then(function (response) {
+      setReceipes(racipes=>[
+        ...recipes,
+        ...response.data.map((data)=>data)
+      ])  
+    })
+    .catch(function (error) {
+      console.log(error);
+    });
+  },[rawingredients]);
+
+  
+
   const detect2 = async (net) => {
     // Check data is available
     if (
@@ -121,32 +147,22 @@ function App() {
       if (hand.length > 0) {
         const GE = new fp.GestureEstimator([
           fpg.Gestures.okGesture,
+          fpg.Gestures.raisedHandGesture
         ]);
         const gesture = await GE.estimate(hand[0].landmarks, 4);
         if (gesture.gestures !== undefined && gesture.gestures.length > 0) {
-          console.log(gesture.gestures);
-
-          if(gesture.gestures[0].score>7.5){
-            setGesture(true);
+          const confidence = gesture.gestures.map(
+            (prediction) => prediction.score
+          );
+          const maxConfidence = confidence.indexOf(
+            Math.max.apply(null, confidence)
+          );
+          if(gesture.gestures[maxConfidence].score>7.5 && gesture.gestures[maxConfidence].name === 'ok'){
+             setOkGesture(true);
           }
-
-          // const confidence = gesture.gestures.map(
-          //   (prediction) => prediction.confidence
-          // );
-          // const maxConfidence = confidence.indexOf(
-          //   Math.max.apply(null, confidence)
-          // );
-          // // console.log(gesture.gestures[maxConfidence].name);
-          // if(gesture.gestures[maxConfidence].confidence>8.5){
-
-          //    setGesture(gesture.gestures[maxConfidence].name);
-          //    console.log("yes")
-          // }
-          // else{
-          //   setGesture()
-          // }
-          
-          
+          else if(gesture.gestures[maxConfidence].score>7.5 && gesture.gestures[maxConfidence].name === 'raised_hand'){
+              setRemoveGesture(true);
+          }
         }
       }
 
@@ -162,14 +178,31 @@ function App() {
   useEffect(()=>{runCoco()},[]);
   useEffect(()=>{runHandpose()},[]);
 
-  useEffect(()=>{ if(transcript ){setDraft(item+" "+transcript)};setGesture(false);setItem()},[transcript])
+  useEffect(()=>{ if(transcript ){setDraft(item+" "+transcript)};setOkGesture(false);setRemoveGesture(false)},[transcript])
   useEffect(()=>
-  {console.log(gesture)
-    if(gesture === true && draft){
+   { 
+            if(removegesture === true && ingredients.includes(latestItem)){
+              setIngredients(ingredients.filter(item => item !== latestItem));
+              setRawIngredients(rawingredients.filter(item => item !== rawingredients.slice(-1)[0]))
+              console.log(ingredients.slice(-2)[0])
+              console.log(rawingredients)
+              setLatestItem();
+              setReceipes([])
+              setRemoveGesture(false)
+            }
+    },[removegesture]);
+  useEffect(()=>
+  {
+    if(okgesture === true && draft){
     setIngredients([...ingredients,draft]);
-    console.log(draft,ingredients);
+    setRawIngredients([...rawingredients,item]);
+    console.log(rawingredients)
+    fetchData();
+    setLatestItem(draft);
+    setItem();
     setDraft();
-    setGesture(false)}},[gesture]);
+    setOkGesture(false)}},[okgesture]);
+  
 
 
 
@@ -188,7 +221,7 @@ function App() {
         <div style={{color:'#B34D2D',fontSize:'20px',marginTop:10}}>Ingredients</div>
         {ingredients.map((ingredient)=>
           <div key={ingredient} 
-               style={{color:'#B34D2D',marginTop:'20px',textAlign:'start'}} >
+               style={{color: '#B34D2D',marginTop:'20px',textAlign:'start'}} >
                 {ingredient}
           </div>
         )}
@@ -246,6 +279,35 @@ function App() {
           height: 480,
         }}
       />     
+     </div>
+     <div style={{margin:'30px',display:'flex',flexDirection:'column',alignItems:'start'}}>
+     {recipes.length !== 0 && <div style={{color:'#B34D2D',fontSize:'20px',marginLeft:20}}>Suggested Recipes</div>}
+     <div style={{display:'flex',flexDirection:'row',marginTop:20}}>
+     {recipes.map((recipe)=>
+      <Card
+      style={{ width: 200,marginLeft:20 }}
+      cover={
+        <img
+          alt={recipe.title}
+          src={recipe.image}
+        />
+      }
+      actions={[
+      <div><PlusOutlined key="select" /></div>,
+      <Popconfirm title="Missing Ingredients" 
+       description= {recipe.missedIngredients.map((data)=>data.name)}
+       showCancel={false}
+       okButtonProps={{style:{display:'none'}}}
+       icon={<></>}><div><BulbOutlined key="missing"/></div>
+      </Popconfirm>
+             
+      ]}
+    >
+    <Meta
+      title={recipe.title}
+    />
+  </Card>)}
+     </div>
      </div>
     </div>
   );
