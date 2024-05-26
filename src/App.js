@@ -34,6 +34,7 @@ function App() {
   const [okgesture,setOkGesture]=useState();
   const [removegesture,setRemoveGesture]=useState();
   const [latestItem,setLatestItem]=useState("");
+  const synth = window.speechSynthesis;
   const { Meta } = Card;
 
 
@@ -185,7 +186,9 @@ function App() {
               setIngredients(ingredients.filter(item => item !== latestItem));
               setRawIngredients(rawingredients.filter(item => item !== rawingredients.slice(-1)[0]))
               console.log(ingredients.slice(-2)[0])
-              console.log(rawingredients)
+              const speak =new SpeechSynthesisUtterance(latestItem+ "Removed");
+              speak.rate =1.2;
+              synth.speak(speak);
               setLatestItem();
               setReceipes([])
               setRemoveGesture(false)
@@ -196,7 +199,9 @@ function App() {
     if(okgesture === true && draft){
     setIngredients([...ingredients,draft]);
     setRawIngredients([...rawingredients,item]);
-    console.log(rawingredients)
+    const speak =new SpeechSynthesisUtterance(draft+ "Added");
+    speak.rate =1.2;
+    synth.speak(speak);
     fetchData();
     setLatestItem(draft);
     setItem();
