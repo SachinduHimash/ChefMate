@@ -187,7 +187,7 @@ function App() {
               setRawIngredients(rawingredients.filter(item => item !== rawingredients.slice(-1)[0]))
               console.log(ingredients.slice(-2)[0])
               const speak =new SpeechSynthesisUtterance(latestItem+ "Removed");
-              speak.rate =1.2;
+              speak.rate =1;
               synth.speak(speak);
               setLatestItem();
               setReceipes([])
@@ -200,7 +200,7 @@ function App() {
     setIngredients([...ingredients,draft]);
     setRawIngredients([...rawingredients,item]);
     const speak =new SpeechSynthesisUtterance(draft+ "Added");
-    speak.rate =1.2;
+    speak.rate =1;
     synth.speak(speak);
     fetchData();
     setLatestItem(draft);
